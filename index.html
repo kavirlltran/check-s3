@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pronunciation Test</title>
   <style>
-    /* Background with a futuristic AI robot image */
+    /* Background: futuristic AI robot image */
     body {
       font-family: 'Arial', sans-serif;
       margin: 0;
@@ -85,6 +85,14 @@
       box-shadow: 0 4px 8px rgba(0,0,0,0.2);
       text-align: center;
       font-size: 1.2em;
+      line-height: 1.4;
+    }
+    /* Style for mispronounced words: bright yellow highlight */
+    .error-word {
+      background-color: #ffeb3b;
+      color: #000;
+      padding: 2px 4px;
+      border-radius: 4px;
     }
   </style>
 </head>
@@ -98,7 +106,7 @@
     <!-- Sentence selection list -->
     <div id="sentence-list"></div>
     
-    <!-- Single Record button -->
+    <!-- Single Record/Stop button -->
     <div id="controls">
       <button id="record-btn">Record</button>
     </div>
@@ -120,14 +128,14 @@
     let selectedSentenceIndex = null;
     let isRecording = false;
     let recognition = null;
-    let finalTranscript = "";
     
-    // Remove stress markers for comparison
+    // Remove stress markers from text for comparison
     function removeStressMarkers(text) {
       return text.replace(/['‘’]/g, "");
     }
     
-    // Compare words and highlight errors; returns output HTML and error count
+    // Compare words between the expected sentence and transcript
+    // Returns an object with the output HTML, number of errors, and total words.
     function diffWords(correctSentence, transcript) {
       const correctWords = correctSentence.trim().toLowerCase().split(/\s+/);
       const transcriptWords = transcript.trim().toLowerCase().split(/\s+/);
@@ -142,16 +150,16 @@
         } else {
           errors++;
           if (tw !== "") {
-            output += `<span style="color: red;">${tw}</span> `;
+            output += `<span class="error-word">${tw}</span> `;
           } else if (cw !== "") {
-            output += `<span style="color: red;">[${cw}]</span> `;
+            output += `<span class="error-word">[${cw}]</span> `;
           }
         }
       }
       return { output, errors, total: maxLen };
     }
     
-    // Populate the sentence list with 3D-styled boxes
+    // Create the sentence list with 3D-styled boxes
     const sentenceListDiv = document.getElementById("sentence-list");
     sentences.forEach((sentence, index) => {
       const sentenceDiv = document.createElement("div");
@@ -179,32 +187,29 @@
     
     recordBtn.addEventListener("click", () => {
       if (!isRecording) {
-        // Ensure a sentence is selected before recording
+        // Ensure a sentence is selected before starting
         if (selectedSentenceIndex === null) {
           alert("Please select a sentence to record.");
           return;
         }
-        finalTranscript = "";
+        // Reset transcript and create a new recognition instance
         recognition = new SpeechRecognition();
-        recognition.continuous = true; // Continuous recording (no auto-stop on silence)
+        recognition.continuous = true; // Do not auto-stop on silence
         recognition.interimResults = true;
         recognition.lang = "en-US";
         
         recognition.onresult = function(event) {
-          let interimTranscript = "";
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            if (event.results[i].isFinal) {
-              finalTranscript += event.results[i][0].transcript + " ";
-            } else {
-              interimTranscript += event.results[i][0].transcript;
-            }
+          let transcript = "";
+          // Instead of accumulating globally, process the full results each time
+          for (let i = 0; i < event.results.length; i++) {
+            transcript += event.results[i][0].transcript + " ";
           }
-          const transcript = finalTranscript + interimTranscript;
+          transcript = transcript.trim();
           const correctSentence = removeStressMarkers(sentences[selectedSentenceIndex]);
           const result = diffWords(correctSentence, transcript);
-          // Display the diff output with errors highlighted
+          // Display the diff output with mispronounced words highlighted in yellow
           feedbackDiv.innerHTML = result.output;
-          // Append a concise summary feedback message
+          // Provide concise summary feedback
           if (result.errors === 0) {
             feedbackDiv.innerHTML += `<div style="margin-top: 10px;">Excellent! Perfect pronunciation.</div>`;
           } else {
@@ -225,7 +230,7 @@
         isRecording = true;
         recordBtn.textContent = "Stop";
       } else {
-        // Stop recording when the button is clicked again
+        // Stop recording on button click
         recognition.stop();
         isRecording = false;
         recordBtn.textContent = "Record";
