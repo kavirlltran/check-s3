@@ -12,9 +12,15 @@
       height: 100%;
       font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
     }
+    /* Thêm ảnh nền kết hợp với gradient cho toàn bộ container */
     .container {
       min-height: 100vh;
-      background: linear-gradient(135deg, #1e3c72, #2a5298);
+      background: 
+        linear-gradient(135deg, rgba(30,60,114,0.8), rgba(42,82,152,0.8)),
+        url('—Pngtree—artificial intelligence robot illustration_9047239.png');
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: center center;
       color: #fff;
       padding: 20px;
       position: relative;
@@ -117,7 +123,7 @@
       const [transcript, setTranscript] = useState("");
       const recognitionRef = useRef(null);
 
-      // Khi load trang, yêu cầu truy cập micro
+      // Khi load trang, yêu cầu truy cập micro (trang web sẽ hiển thị yêu cầu truy cập theo mặc định của trình duyệt)
       useEffect(() => {
         navigator.mediaDevices.getUserMedia({ audio: true })
           .then(stream => {
