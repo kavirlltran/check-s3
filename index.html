@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pronunciation Checker</title>
+  <style>
+    /* Global styles */
+    body, html {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    }
+    .container {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #1e3c72, #2a5298);
+      color: #fff;
+      padding: 20px;
+      position: relative;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .robot-image {
+      width: 80px;
+      height: 80px;
+    }
+    .content {
+      margin-top: 30px;
+    }
+    .line-box {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 15px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+      transition: transform 0.3s, background 0.3s;
+      cursor: pointer;
+    }
+    .line-box.active {
+      background: rgba(255, 255, 255, 0.2);
+      transform: translateY(-5px);
+    }
+    .line-box:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+    .feedback {
+      margin-top: 10px;
+      background: rgba(0, 0, 0, 0.2);
+      padding: 10px;
+      border-radius: 5px;
+      font-size: 0.9rem;
+    }
+    .controls {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 15px;
+      z-index: 100;
+    }
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      background: #ff5722;
+      color: #fff;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    button:hover:not(:disabled) {
+      background: #e64a19;
+    }
+    button:disabled {
+      background: #999;
+      cursor: not-allowed;
+    }
+    .stress {
+      color: #ffd700;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <!-- Load React, ReactDOM and Babel -->
+  <script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+  
+  <!-- Our React code -->
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    // Các dòng nội dung với dấu ' chỉ các âm tiết được nhấn mạnh.
+    const lines = [
+      "We should ‘finish the ‘project for our ‘history ‘class",
+      "‘Peter is re‘vising for his e‘xam ‘next ‘week.",
+      "‘Students will ‘spend more ‘time ‘working with ‘other ‘classmates.",
+      "I ‘like to ‘watch ‘videos that ‘help me ‘learn ‘new ‘things",
+      "I have ‘installed some ‘apps on my ‘phone"
+    ];
+
+    function App() {
+      const [activeLineIndex, setActiveLineIndex] = useState(null);
+      const [feedbacks, setFeedbacks] = useState({});
+      const [recording, setRecording] = useState(false);
+      const [transcript, setTranscript] = useState("");
+      const recognitionRef = useRef(null);
+
+      // Khởi tạo Web Speech API nếu có hỗ trợ
+      useEffect(() => {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+          const recognition = new SpeechRecognition();
+          recognition.continuous = true; // Lắng nghe liên tục cho đến khi dừng
+          recognition.interimResults = false;
+          recognition.lang = "en-US";
+
+          recognition.onresult = (event) => {
+            let finalTranscript = "";
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+              if (event.results[i].isFinal) {
+                finalTranscript += event.results[i][0].transcript + " ";
+              }
+            }
+            setTranscript(finalTranscript.trim());
+          };
+
+          recognition.onerror = (event) => {
+            console.error("Speech recognition error:", event.error);
+          };
+
+          recognitionRef.current = recognition;
+        } else {
+          console.warn("Speech Recognition API not supported in this browser.");
+        }
+      }, []);
+
+      // Yêu cầu quyền truy cập micro
+      const requestMicrophoneAccess = async () => {
+        try {
+          await navigator.mediaDevices.getUserMedia({ audio: true });
+          alert("Microphone access granted.");
+        } catch (err) {
+          console.error("Microphone access denied", err);
+          alert("Microphone access denied.");
+        }
+      };
+
+      // Bắt đầu ghi âm
+      const startRecording = () => {
+        if (!recognitionRef.current) return;
+        setTranscript("");
+        setRecording(true);
+        recognitionRef.current.start();
+      };
+
+      // Dừng ghi âm và tiến hành đánh giá
+      const stopRecording = () => {
+        if (!recognitionRef.current) return;
+        recognitionRef.current.stop();
+        setRecording(false);
+        setTimeout(() => {
+          evaluatePronunciation();
+        }, 500);
+      };
+
+      // So sánh file âm thanh (transcript) với nội dung dự kiến
+      const evaluatePronunciation = () => {
+        if (activeLineIndex === null) return;
+        const expectedText = lines[activeLineIndex].replace(/‘/g, "'");
+        const recognizedText = transcript.trim();
+        const expectedWords = expectedText.split(/\s+/);
+        const recognizedWords = recognizedText.split(/\s+/);
+
+        // So sánh từng từ (không phân biệt hoa thường)
+        const errors = expectedWords.map((word, idx) => {
+          const cleanExpected = word.replace(/[.,?!]/g, "");
+          const cleanRecognized = (recognizedWords[idx] || "").replace(/[.,?!]/g, "");
+          return cleanExpected.toLowerCase() === cleanRecognized.toLowerCase() ? null : word;
+        }).filter(word => word !== null);
+
+        setFeedbacks(prev => ({
+          ...prev,
+          [activeLineIndex]: { recognizedText, errors }
+        }));
+      };
+
+      // Hàm format để highlight các từ có dấu ' (trọng âm)
+      const formatLine = (line) => {
+        const formatted = line.replace(/‘(\S+)/g, "<span class='stress'>'$1</span>");
+        return formatted;
+      };
+
+      return (
+        <div className="container">
+          <header className="header">
+            <h1>Pronunciation Checker</h1>
+            <img src="ai-robot.png" alt="AI Robot" className="robot-image" />
+          </header>
+          <main className="content">
+            {lines.map((line, index) => (
+              <div
+                key={index}
+                className={`line-box ${activeLineIndex === index ? "active" : ""}`}
+                onClick={() => setActiveLineIndex(index)}
+              >
+                <p dangerouslySetInnerHTML={{ __html: formatLine(line) }}></p>
+                {feedbacks[index] && (
+                  <div className="feedback">
+                    <p><strong>Your reading:</strong> {feedbacks[index].recognizedText}</p>
+                    {feedbacks[index].errors.length > 0 ? (
+                      <p>
+                        <strong>Mispronounced words:</strong> {feedbacks[index].errors.join(", ")}
+                      </p>
+                    ) : (
+                      <p><strong>Excellent!</strong> All words pronounced correctly!</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </main>
+          <div className="controls">
+            <button onClick={requestMicrophoneAccess}>Request Microphone Access</button>
+            {!recording ? (
+              <button onClick={startRecording} disabled={activeLineIndex === null}>
+                Start Recording
+              </button>
+            ) : (
+              <button onClick={stopRecording}>Stop Recording</button>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.render(<App />, document.getElementById("root"));
+  </script>
+</body>
+</html>
