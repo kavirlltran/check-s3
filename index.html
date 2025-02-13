@@ -62,7 +62,6 @@
       left: 50%;
       transform: translateX(-50%);
       display: flex;
-      flex-direction: column;
       gap: 15px;
       z-index: 100;
       align-items: center;
@@ -87,12 +86,6 @@
     .stress {
       color: #ffd700;
       font-weight: bold;
-    }
-    .mic-notice {
-      font-size: 0.9rem;
-      background: rgba(0, 0, 0, 0.3);
-      padding: 8px 12px;
-      border-radius: 4px;
     }
   </style>
 </head>
@@ -122,15 +115,27 @@
       const [feedbacks, setFeedbacks] = useState({});
       const [recording, setRecording] = useState(false);
       const [transcript, setTranscript] = useState("");
-      const [micAccessMessage, setMicAccessMessage] = useState("");
       const recognitionRef = useRef(null);
+
+      // Khi load trang, yêu cầu truy cập micro
+      useEffect(() => {
+        navigator.mediaDevices.getUserMedia({ audio: true })
+          .then(stream => {
+            console.log("Microphone access granted on page load.");
+            // Dừng ngay stream nếu không cần dùng, vì chỉ cần quyền là đủ.
+            stream.getTracks().forEach(track => track.stop());
+          })
+          .catch(err => {
+            console.error("Error accessing microphone: ", err);
+          });
+      }, []);
 
       // Khởi tạo Web Speech API nếu có hỗ trợ
       useEffect(() => {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (SpeechRecognition) {
           const recognition = new SpeechRecognition();
-          recognition.continuous = true; // Lắng nghe liên tục cho đến khi dừng
+          recognition.continuous = true; // Ghi âm liên tục, chỉ dừng khi người dùng nhấn nút dừng
           recognition.interimResults = false;
           recognition.lang = "en-US";
 
@@ -154,31 +159,6 @@
         }
       }, []);
 
-      // Kiểm tra trạng thái quyền micro và cập nhật thông báo
-      useEffect(() => {
-        if (navigator.permissions && navigator.permissions.query) {
-          navigator.permissions.query({ name: 'microphone' }).then((permissionStatus) => {
-            updateMicMessage(permissionStatus.state);
-            permissionStatus.onchange = function() {
-              updateMicMessage(permissionStatus.state);
-            };
-          });
-        } else {
-          // Nếu không hỗ trợ API Permissions, hiển thị thông báo mặc định
-          setMicAccessMessage("Please allow microphone access for recording.");
-        }
-      }, []);
-
-      function updateMicMessage(state) {
-        if (state === "granted") {
-          setMicAccessMessage("Microphone access granted.");
-        } else if (state === "prompt") {
-          setMicAccessMessage("Please allow microphone access for recording.");
-        } else if (state === "denied") {
-          setMicAccessMessage("Microphone access denied. Please enable it in your browser settings.");
-        }
-      }
-
       // Bắt đầu ghi âm
       const startRecording = () => {
         if (!recognitionRef.current) return;
@@ -192,12 +172,13 @@
         if (!recognitionRef.current) return;
         recognitionRef.current.stop();
         setRecording(false);
+        // Sau khi dừng ghi âm, tiến hành đánh giá phát âm
         setTimeout(() => {
           evaluatePronunciation();
         }, 500);
       };
 
-      // So sánh file âm thanh (transcript) với nội dung dự kiến
+      // So sánh transcript với nội dung dự kiến
       const evaluatePronunciation = () => {
         if (activeLineIndex === null) return;
         const expectedText = lines[activeLineIndex].replace(/‘/g, "'");
@@ -205,7 +186,6 @@
         const expectedWords = expectedText.split(/\s+/);
         const recognizedWords = recognizedText.split(/\s+/);
 
-        // So sánh từng từ (không phân biệt hoa thường)
         const errors = expectedWords.map((word, idx) => {
           const cleanExpected = word.replace(/[.,?!]/g, "");
           const cleanRecognized = (recognizedWords[idx] || "").replace(/[.,?!]/g, "");
@@ -254,8 +234,6 @@
             ))}
           </main>
           <div className="controls">
-            {/* Thông báo trạng thái quyền micro */}
-            <div className="mic-notice">{micAccessMessage}</div>
             {!recording ? (
               <button onClick={startRecording} disabled={activeLineIndex === null}>
                 Start Recording
