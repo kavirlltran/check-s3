@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -34,7 +34,7 @@
     .header-text {
       align-self: flex-end;
       font-size: 1rem;
-      color: #ffd700; /* Màu vàng */
+      color: #ffd700; /* màu vàng */
       margin-bottom: 5px;
     }
     .header h1 {
@@ -111,11 +111,11 @@
   <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>
   <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
   
-  <!-- Mã nguồn React của chúng ta -->
+  <!-- Mã nguồn React -->
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
 
-    // Các dòng nội dung với dấu ' chỉ các âm tiết được nhấn mạnh.
+    // Các dòng nội dung mẫu với dấu ' để chỉ âm tiết được nhấn mạnh
     const lines = [
       "We should ‘finish the ‘project for our ‘history ‘class",
       "‘Peter is re‘vising for his e‘xam ‘next ‘week.",
@@ -123,6 +123,30 @@
       "I ‘like to ‘watch ‘videos that ‘help me ‘learn ‘new ‘things",
       "I have ‘installed some ‘apps on my ‘phone"
     ];
+
+    // Hàm tính khoảng cách Levenshtein giữa hai chuỗi
+    function levenshteinDistance(a, b) {
+      const m = a.length;
+      const n = b.length;
+      const dp = [];
+      for (let i = 0; i <= m; i++) {
+        dp[i] = [i];
+      }
+      for (let j = 0; j <= n; j++) {
+        dp[0][j] = j;
+      }
+      for (let i = 1; i <= m; i++) {
+        for (let j = 1; j <= n; j++) {
+          const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+          dp[i][j] = Math.min(
+            dp[i - 1][j] + 1,
+            dp[i][j - 1] + 1,
+            dp[i - 1][j - 1] + cost
+          );
+        }
+      }
+      return dp[m][n];
+    }
 
     function App() {
       const [activeLineIndex, setActiveLineIndex] = useState(null);
@@ -135,12 +159,12 @@
       useEffect(() => {
         navigator.mediaDevices.getUserMedia({ audio: true })
           .then(stream => {
-            console.log("Microphone access granted on page load.");
+            console.log("Đã cấp quyền truy cập micro khi load trang.");
             // Dừng stream ngay vì chỉ cần quyền truy cập
             stream.getTracks().forEach(track => track.stop());
           })
           .catch(err => {
-            console.error("Error accessing microphone:", err);
+            console.error("Lỗi truy cập micro:", err);
           });
       }, []);
 
@@ -149,7 +173,7 @@
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (SpeechRecognition) {
           const recognition = new SpeechRecognition();
-          recognition.continuous = true; // Ghi âm liên tục, chỉ dừng khi người dùng nhấn nút dừng
+          recognition.continuous = true; // Ghi âm liên tục; chỉ dừng khi người dùng nhấn nút dừng
           recognition.interimResults = false;
           recognition.lang = "en-US";
 
@@ -164,12 +188,12 @@
           };
 
           recognition.onerror = (event) => {
-            console.error("Speech recognition error:", event.error);
+            console.error("Lỗi nhận dạng giọng nói:", event.error);
           };
 
           recognitionRef.current = recognition;
         } else {
-          console.warn("Speech Recognition API not supported in this browser.");
+          console.warn("Trình duyệt không hỗ trợ Speech Recognition API.");
         }
       }, []);
 
@@ -191,18 +215,25 @@
         }, 500);
       };
 
-      // So sánh transcript với nội dung dự kiến
+      // So sánh transcript với nội dung mẫu sử dụng khoảng cách Levenshtein
       const evaluatePronunciation = () => {
         if (activeLineIndex === null) return;
-        const expectedText = lines[activeLineIndex].replace(/‘/g, "'");
+        const expectedText = lines[activeLineIndex].replace(/‘/g, "'");  // thay đổi ký tự đặc biệt nếu cần
         const recognizedText = transcript.trim();
         const expectedWords = expectedText.split(/\s+/);
         const recognizedWords = recognizedText.split(/\s+/);
 
+        // Ngưỡng cho phép (ví dụ: 30% khác biệt)
+        const threshold = 0.3;
+
         const errors = expectedWords.map((word, idx) => {
-          const cleanExpected = word.replace(/[.,?!]/g, "");
-          const cleanRecognized = (recognizedWords[idx] || "").replace(/[.,?!]/g, "");
-          return cleanExpected.toLowerCase() === cleanRecognized.toLowerCase() ? null : word;
+          const cleanExpected = word.replace(/[.,?!]/g, "").toLowerCase();
+          const cleanRecognized = ((recognizedWords[idx] || "")).replace(/[.,?!]/g, "").toLowerCase();
+          // Nếu từ ghi âm không tồn tại hoặc khác biệt vượt quá ngưỡng, đánh dấu là lỗi
+          if (!cleanRecognized) return word;
+          const distance = levenshteinDistance(cleanExpected, cleanRecognized);
+          const ratio = distance / cleanExpected.length;
+          return (ratio > threshold) ? word : null;
         }).filter(word => word !== null);
 
         setFeedbacks(prev => ({
