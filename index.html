@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Kiểm Tra Phát Âm với Web Speech API</title>
   <style>
-    /* Thiết lập hình nền với hình robot AI kiểu công nghệ tương lai */
+    /* Hình nền với ảnh robot AI kiểu công nghệ tương lai */
     body {
       font-family: 'Arial', sans-serif;
       margin: 0;
@@ -14,7 +14,6 @@
       background-size: cover;
       color: #fff;
     }
-    /* Overlay nền đen bán trong suốt để tăng độ tương phản cho chữ */
     .overlay {
       background-color: rgba(0, 0, 0, 0.6);
       min-height: 100vh;
@@ -26,33 +25,32 @@
       margin-bottom: 20px;
       text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
     }
-    .sentence-container {
-      margin-bottom: 30px;
-      padding: 20px;
-      border: 2px solid transparent;
-      border-radius: 8px;
-      transition: border 0.3s, background-color 0.3s;
+    #sentence-list {
+      margin-bottom: 20px;
     }
-    /* Khi container đang ghi âm */
-    .sentence-container.recording {
-      border: 2px solid #ffeb3b;
-      background-color: rgba(255, 235, 59, 0.2);
-    }
-    .sentence {
-      font-size: 1.4em;
-      font-weight: bold;
+    .sentence-item {
+      padding: 10px;
       margin-bottom: 10px;
-      color: #fff;
-      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+      border: 1px solid transparent;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.3s, border-color 0.3s;
     }
-    .result {
-      margin-top: 10px;
+    .sentence-item:hover {
+      background-color: rgba(255,255,255,0.1);
+    }
+    .sentence-item.selected {
+      background-color: rgba(33,150,243,0.3);
+      border-color: #2196f3;
       font-weight: bold;
-      color: #ffeb3b;
     }
-    button {
-      padding: 10px 15px;
-      font-size: 1.1em;
+    #controls {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    #record-btn {
+      padding: 10px 20px;
+      font-size: 1.2em;
       font-weight: bold;
       border: none;
       border-radius: 4px;
@@ -61,24 +59,37 @@
       color: #fff;
       transition: background-color 0.3s;
     }
-    button:hover {
+    #record-btn:hover {
       background-color: #1976d2;
+    }
+    #feedback {
+      text-align: center;
+      font-size: 1.2em;
+      font-weight: bold;
+      margin-top: 10px;
+      color: #fff;
     }
   </style>
 </head>
 <body>
   <div class="overlay">
     <h1>Kiểm Tra Phát Âm</h1>
-    <p style="text-align: center;">
-      Hãy đọc to các câu sau. Các từ có dấu <code>'</code> (hoặc <code>‘</code>) đánh dấu trọng âm.
-      Nhấn nút <strong>Record</strong> để kiểm tra phát âm của bạn.
-    </p>
+    <p style="text-align: center;">Chọn một câu bên dưới rồi nhấn <strong>Record</strong> để ghi âm. Các từ có dấu <code>'</code> (hoặc <code>‘</code>) đánh dấu trọng âm.</p>
     
-    <div id="sentences"></div>
+    <!-- Danh sách các câu để chọn -->
+    <div id="sentence-list"></div>
+    
+    <!-- Nút ghi âm duy nhất -->
+    <div id="controls">
+      <button id="record-btn">Record</button>
+    </div>
+    
+    <!-- Phần nhận xét hiển thị kết quả -->
+    <div id="feedback"></div>
   </div>
   
   <script>
-    // Danh sách các câu (với dấu ' hoặc ‘ đánh dấu trọng âm)
+    // Danh sách các câu có dấu trọng âm
     const sentences = [
       "We should ‘finish the ‘project for our ‘history ‘class",
       "‘Peter is re‘vising for his e‘xam ‘next ‘week.",
@@ -86,99 +97,114 @@
       "I ‘like to ‘watch ‘videos that ‘help me ‘learn ‘new ‘things",
       "I have ‘installed some ‘apps on my ‘phone"
     ];
-
-    // Hàm loại bỏ dấu nhấn (dấu ' và ‘ ’)
+    
+    let selectedSentenceIndex = null;
+    let isRecording = false;
+    let recognition = null;
+    let finalTranscript = "";
+    
+    // Hàm loại bỏ dấu nhấn ( ' và ‘ ’ )
     function removeStressMarkers(text) {
       return text.replace(/['‘’]/g, "");
     }
-
-    const sentencesDiv = document.getElementById("sentences");
-    // Lưu đối tượng SpeechRecognition đang hoạt động cho từng câu
-    const activeRecognitions = {};
-
-    // Kiểm tra sự hỗ trợ của Web Speech API
+    
+    // Hàm so sánh từng từ, hiển thị từ sai màu đỏ
+    function diffWords(correctSentence, transcript) {
+      const correctWords = correctSentence.trim().toLowerCase().split(/\s+/);
+      const transcriptWords = transcript.trim().toLowerCase().split(/\s+/);
+      let output = "";
+      const maxLen = Math.max(correctWords.length, transcriptWords.length);
+      for (let i = 0; i < maxLen; i++) {
+        const cw = correctWords[i] || "";
+        const tw = transcriptWords[i] || "";
+        if (cw === tw && tw !== "") {
+          output += tw + " ";
+        } else {
+          if (tw !== "") {
+            output += `<span style="color: red;">${tw}</span> `;
+          } else if (cw !== "") {
+            output += `<span style="color: red;">[${cw}]</span> `;
+          }
+        }
+      }
+      return output;
+    }
+    
+    // Tạo danh sách câu cho người dùng lựa chọn
+    const sentenceListDiv = document.getElementById("sentence-list");
+    sentences.forEach((sentence, index) => {
+      const sentenceDiv = document.createElement("div");
+      sentenceDiv.className = "sentence-item";
+      sentenceDiv.textContent = sentence;
+      sentenceDiv.addEventListener("click", () => {
+        // Đánh dấu câu được chọn
+        document.querySelectorAll(".sentence-item").forEach(item => item.classList.remove("selected"));
+        sentenceDiv.classList.add("selected");
+        selectedSentenceIndex = index;
+        // Xóa phần nhận xét khi thay đổi câu
+        document.getElementById("feedback").innerHTML = "";
+      });
+      sentenceListDiv.appendChild(sentenceDiv);
+    });
+    
+    // Kiểm tra hỗ trợ Web Speech API
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       alert("Trình duyệt của bạn không hỗ trợ Speech Recognition API. Vui lòng thử trên Chrome hoặc Edge.");
     }
-
-    // Tạo giao diện cho từng câu
-    sentences.forEach((sentence, index) => {
-      // Tạo container cho từng câu
-      const container = document.createElement("div");
-      container.className = "sentence-container";
-      container.id = "sentence-container-" + index;
-
-      // Hiển thị câu
-      const sentenceEl = document.createElement("div");
-      sentenceEl.className = "sentence";
-      sentenceEl.textContent = sentence;
-      container.appendChild(sentenceEl);
-
-      // Tạo nút Record/Stop
-      const recordBtn = document.createElement("button");
-      recordBtn.textContent = "Record";
-      recordBtn.id = "record-btn-" + index;
-      container.appendChild(recordBtn);
-
-      // Vùng hiển thị kết quả
-      const resultDiv = document.createElement("div");
-      resultDiv.className = "result";
-      resultDiv.id = "result-" + index;
-      container.appendChild(resultDiv);
-
-      sentencesDiv.appendChild(container);
-
-      // Sự kiện cho nút Record/Stop
-      recordBtn.addEventListener("click", () => {
-        if (activeRecognitions[index]) {
-          // Nếu đang ghi âm, dừng lại
-          activeRecognitions[index].stop();
-          // Nút và container sẽ được cập nhật trong onend
-        } else {
-          startRecognition(index, sentence, recordBtn, container, resultDiv);
+    
+    const recordBtn = document.getElementById("record-btn");
+    const feedbackDiv = document.getElementById("feedback");
+    
+    recordBtn.addEventListener("click", () => {
+      if (!isRecording) {
+        // Bắt đầu ghi âm: yêu cầu chọn câu
+        if (selectedSentenceIndex === null) {
+          alert("Vui lòng chọn một câu để ghi âm.");
+          return;
         }
-      });
-    });
-
-    // Hàm sử dụng Web Speech API để nhận dạng giọng nói
-    function startRecognition(index, sentence, recordBtn, container, resultDiv) {
-      const recognition = new SpeechRecognition();
-      activeRecognitions[index] = recognition;
-      recognition.lang = "en-US";
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
-
-      // Cập nhật giao diện khi bắt đầu ghi âm
-      recordBtn.textContent = "Stop";
-      container.classList.add("recording");
-      resultDiv.textContent = "Đang ghi âm...";
-
-      recognition.start();
-
-      recognition.onresult = function(event) {
-        const transcript = event.results[0][0].transcript;
-        const cleanSentence = removeStressMarkers(sentence).toLowerCase().trim();
-        const cleanTranscript = transcript.toLowerCase().trim();
-        let feedback = `Bạn nói: "${transcript}"`;
-        if (cleanTranscript === cleanSentence) {
-          feedback += " - Tuyệt vời!";
-        } else {
-          feedback += " - Hãy thử lại.";
-        }
-        resultDiv.textContent = feedback;
-      };
-
-      recognition.onerror = function(event) {
-        resultDiv.textContent = "Lỗi: " + event.error;
-      };
-
-      recognition.onend = function() {
+        finalTranscript = "";
+        recognition = new SpeechRecognition();
+        recognition.continuous = true; // Không tự dừng khi có khoảng lặng
+        recognition.interimResults = true;
+        recognition.lang = "en-US";
+        
+        recognition.onresult = function(event) {
+          let interimTranscript = "";
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            if (event.results[i].isFinal) {
+              finalTranscript += event.results[i][0].transcript + " ";
+            } else {
+              interimTranscript += event.results[i][0].transcript;
+            }
+          }
+          const transcript = finalTranscript + interimTranscript;
+          // Loại bỏ dấu trọng âm khỏi câu đúng để so sánh
+          const correctSentence = removeStressMarkers(sentences[selectedSentenceIndex]);
+          // Tạo diff hiển thị từ sai bằng màu đỏ
+          const diffOutput = diffWords(correctSentence, transcript);
+          feedbackDiv.innerHTML = diffOutput;
+        };
+        
+        recognition.onerror = function(event) {
+          console.error("Recognition error: ", event.error);
+        };
+        
+        recognition.onend = function() {
+          isRecording = false;
+          recordBtn.textContent = "Record";
+        };
+        
+        recognition.start();
+        isRecording = true;
+        recordBtn.textContent = "Stop";
+      } else {
+        // Dừng ghi âm khi nhấn nút lần nữa
+        recognition.stop();
+        isRecording = false;
         recordBtn.textContent = "Record";
-        container.classList.remove("recording");
-        delete activeRecognitions[index];
-      };
-    }
+      }
+    });
   </script>
 </body>
 </html>
