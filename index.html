@@ -37,12 +37,14 @@
       margin-bottom: 20px;
       border-radius: 8px;
       box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
-      transition: transform 0.3s, background 0.3s;
+      transition: transform 0.3s, background 0.3s, box-shadow 0.3s;
       cursor: pointer;
     }
+    /* Khi dòng được chọn, highlight luôn sáng với nền sáng hơn và hiệu ứng glow */
     .line-box.active {
-      background: rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.3);
       transform: translateY(-5px);
+      box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
     }
     .line-box:hover {
       background: rgba(255, 255, 255, 0.15);
@@ -129,144 +131,4 @@
         if (SpeechRecognition) {
           const recognition = new SpeechRecognition();
           recognition.continuous = true; // Lắng nghe liên tục cho đến khi dừng
-          recognition.interimResults = false;
-          recognition.lang = "en-US";
-
-          recognition.onresult = (event) => {
-            let finalTranscript = "";
-            for (let i = event.resultIndex; i < event.results.length; i++) {
-              if (event.results[i].isFinal) {
-                finalTranscript += event.results[i][0].transcript + " ";
-              }
-            }
-            setTranscript(finalTranscript.trim());
-          };
-
-          recognition.onerror = (event) => {
-            console.error("Speech recognition error:", event.error);
-          };
-
-          recognitionRef.current = recognition;
-        } else {
-          console.warn("Speech Recognition API not supported in this browser.");
-        }
-      }, []);
-
-      // Kiểm tra trạng thái quyền micro và cập nhật thông báo
-      useEffect(() => {
-        if (navigator.permissions && navigator.permissions.query) {
-          navigator.permissions.query({ name: 'microphone' }).then((permissionStatus) => {
-            updateMicMessage(permissionStatus.state);
-            permissionStatus.onchange = function() {
-              updateMicMessage(permissionStatus.state);
-            };
-          });
-        } else {
-          // Nếu không hỗ trợ API Permissions, hiển thị thông báo mặc định
-          setMicAccessMessage("Please allow microphone access for recording.");
-        }
-      }, []);
-
-      function updateMicMessage(state) {
-        if (state === "granted") {
-          setMicAccessMessage("Microphone access granted.");
-        } else if (state === "prompt") {
-          setMicAccessMessage("Please allow microphone access for recording.");
-        } else if (state === "denied") {
-          setMicAccessMessage("Microphone access denied. Please enable it in your browser settings.");
-        }
-      }
-
-      // Bắt đầu ghi âm
-      const startRecording = () => {
-        if (!recognitionRef.current) return;
-        setTranscript("");
-        setRecording(true);
-        recognitionRef.current.start();
-      };
-
-      // Dừng ghi âm và tiến hành đánh giá
-      const stopRecording = () => {
-        if (!recognitionRef.current) return;
-        recognitionRef.current.stop();
-        setRecording(false);
-        setTimeout(() => {
-          evaluatePronunciation();
-        }, 500);
-      };
-
-      // So sánh file âm thanh (transcript) với nội dung dự kiến
-      const evaluatePronunciation = () => {
-        if (activeLineIndex === null) return;
-        const expectedText = lines[activeLineIndex].replace(/‘/g, "'");
-        const recognizedText = transcript.trim();
-        const expectedWords = expectedText.split(/\s+/);
-        const recognizedWords = recognizedText.split(/\s+/);
-
-        // So sánh từng từ (không phân biệt hoa thường)
-        const errors = expectedWords.map((word, idx) => {
-          const cleanExpected = word.replace(/[.,?!]/g, "");
-          const cleanRecognized = (recognizedWords[idx] || "").replace(/[.,?!]/g, "");
-          return cleanExpected.toLowerCase() === cleanRecognized.toLowerCase() ? null : word;
-        }).filter(word => word !== null);
-
-        setFeedbacks(prev => ({
-          ...prev,
-          [activeLineIndex]: { recognizedText, errors }
-        }));
-      };
-
-      // Hàm format để highlight các từ có dấu ' (trọng âm)
-      const formatLine = (line) => {
-        const formatted = line.replace(/‘(\S+)/g, "<span class='stress'>'$1</span>");
-        return formatted;
-      };
-
-      return (
-        <div className="container">
-          <header className="header">
-            <h1>Pronunciation Checker</h1>
-            <img src="ai-robot.png" alt="AI Robot" className="robot-image" />
-          </header>
-          <main className="content">
-            {lines.map((line, index) => (
-              <div
-                key={index}
-                className={`line-box ${activeLineIndex === index ? "active" : ""}`}
-                onClick={() => setActiveLineIndex(index)}
-              >
-                <p dangerouslySetInnerHTML={{ __html: formatLine(line) }}></p>
-                {feedbacks[index] && (
-                  <div className="feedback">
-                    <p><strong>Your reading:</strong> {feedbacks[index].recognizedText}</p>
-                    {feedbacks[index].errors.length > 0 ? (
-                      <p>
-                        <strong>Mispronounced words:</strong> {feedbacks[index].errors.join(", ")}
-                      </p>
-                    ) : (
-                      <p><strong>Excellent!</strong> All words pronounced correctly!</p>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
-          </main>
-          <div className="controls">
-            {/* Thông báo trạng thái quyền micro */}
-            <div className="mic-notice">{micAccessMessage}</div>
-            {!recording ? (
-              <button onClick={startRecording} disabled={activeLineIndex === null}>
-                Start Recording
-              </button>
-            ) : (
-              <button onClick={stopRecording}>Stop Recording</button>
-            )}
-          </div>
-        </div>
-      );
-    }
-
-    ReactDOM.render(<App />, document.getElementById("root"));
-  </script>
-</body>
-</html>
+          rec
