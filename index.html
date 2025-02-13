@@ -3,16 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Kiểm Tra Phát Âm với Web Speech API</title>
+  <title>Pronunciation Test</title>
   <style>
-    /* Hình nền với ảnh robot AI kiểu công nghệ tương lai */
+    /* Background with a futuristic AI robot image */
     body {
       font-family: 'Arial', sans-serif;
       margin: 0;
       padding: 0;
       background: url('https://source.unsplash.com/1600x900/?robot,AI,futuristic') no-repeat center center fixed;
       background-size: cover;
-      color: #fff;
     }
     .overlay {
       background-color: rgba(0, 0, 0, 0.6);
@@ -23,27 +22,40 @@
       text-align: center;
       font-size: 2.5em;
       margin-bottom: 20px;
+      color: #fff;
       text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
     }
-    #sentence-list {
+    p.instruction {
+      text-align: center;
+      color: #fff;
+      font-size: 1.2em;
       margin-bottom: 20px;
     }
+    /* 3D-styled sentence list */
+    #sentence-list {
+      max-width: 800px;
+      margin: 0 auto 20px auto;
+    }
     .sentence-item {
-      padding: 10px;
+      background-color: #fff;
+      color: #333;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 10px 15px;
       margin-bottom: 10px;
-      border: 1px solid transparent;
-      border-radius: 4px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      transition: transform 0.2s, box-shadow 0.2s;
       cursor: pointer;
-      transition: background-color 0.3s, border-color 0.3s;
     }
     .sentence-item:hover {
-      background-color: rgba(255,255,255,0.1);
+      transform: translateY(-3px);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.3);
     }
     .sentence-item.selected {
-      background-color: rgba(33,150,243,0.3);
+      background-color: #e3f2fd;
       border-color: #2196f3;
-      font-weight: bold;
     }
+    /* Controls */
     #controls {
       text-align: center;
       margin-bottom: 20px;
@@ -62,34 +74,41 @@
     #record-btn:hover {
       background-color: #1976d2;
     }
+    /* 3D-styled feedback box */
     #feedback {
+      max-width: 800px;
+      margin: 0 auto;
+      background-color: #fff;
+      color: #333;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
       text-align: center;
       font-size: 1.2em;
-      font-weight: bold;
-      margin-top: 10px;
-      color: #fff;
     }
   </style>
 </head>
 <body>
   <div class="overlay">
-    <h1>Kiểm Tra Phát Âm</h1>
-    <p style="text-align: center;">Chọn một câu bên dưới rồi nhấn <strong>Record</strong> để ghi âm. Các từ có dấu <code>'</code> (hoặc <code>‘</code>) đánh dấu trọng âm.</p>
+    <h1>Pronunciation Test</h1>
+    <p class="instruction">
+      Select a sentence below and click <strong>Record</strong> to start. Words marked with a <code>'</code> (or <code>‘</code>) indicate stress.
+    </p>
     
-    <!-- Danh sách các câu để chọn -->
+    <!-- Sentence selection list -->
     <div id="sentence-list"></div>
     
-    <!-- Nút ghi âm duy nhất -->
+    <!-- Single Record button -->
     <div id="controls">
       <button id="record-btn">Record</button>
     </div>
     
-    <!-- Phần nhận xét hiển thị kết quả -->
+    <!-- Feedback section -->
     <div id="feedback"></div>
   </div>
   
   <script>
-    // Danh sách các câu có dấu trọng âm
+    // List of sentences (with stress markers)
     const sentences = [
       "We should ‘finish the ‘project for our ‘history ‘class",
       "‘Peter is re‘vising for his e‘xam ‘next ‘week.",
@@ -103,16 +122,17 @@
     let recognition = null;
     let finalTranscript = "";
     
-    // Hàm loại bỏ dấu nhấn ( ' và ‘ ’ )
+    // Remove stress markers for comparison
     function removeStressMarkers(text) {
       return text.replace(/['‘’]/g, "");
     }
     
-    // Hàm so sánh từng từ, hiển thị từ sai màu đỏ
+    // Compare words and highlight errors; returns output HTML and error count
     function diffWords(correctSentence, transcript) {
       const correctWords = correctSentence.trim().toLowerCase().split(/\s+/);
       const transcriptWords = transcript.trim().toLowerCase().split(/\s+/);
       let output = "";
+      let errors = 0;
       const maxLen = Math.max(correctWords.length, transcriptWords.length);
       for (let i = 0; i < maxLen; i++) {
         const cw = correctWords[i] || "";
@@ -120,6 +140,7 @@
         if (cw === tw && tw !== "") {
           output += tw + " ";
         } else {
+          errors++;
           if (tw !== "") {
             output += `<span style="color: red;">${tw}</span> `;
           } else if (cw !== "") {
@@ -127,30 +148,30 @@
           }
         }
       }
-      return output;
+      return { output, errors, total: maxLen };
     }
     
-    // Tạo danh sách câu cho người dùng lựa chọn
+    // Populate the sentence list with 3D-styled boxes
     const sentenceListDiv = document.getElementById("sentence-list");
     sentences.forEach((sentence, index) => {
       const sentenceDiv = document.createElement("div");
       sentenceDiv.className = "sentence-item";
       sentenceDiv.textContent = sentence;
       sentenceDiv.addEventListener("click", () => {
-        // Đánh dấu câu được chọn
+        // Mark the selected sentence
         document.querySelectorAll(".sentence-item").forEach(item => item.classList.remove("selected"));
         sentenceDiv.classList.add("selected");
         selectedSentenceIndex = index;
-        // Xóa phần nhận xét khi thay đổi câu
+        // Clear previous feedback
         document.getElementById("feedback").innerHTML = "";
       });
       sentenceListDiv.appendChild(sentenceDiv);
     });
     
-    // Kiểm tra hỗ trợ Web Speech API
+    // Check for Web Speech API support
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert("Trình duyệt của bạn không hỗ trợ Speech Recognition API. Vui lòng thử trên Chrome hoặc Edge.");
+      alert("Your browser does not support the Speech Recognition API. Please use Chrome or Edge.");
     }
     
     const recordBtn = document.getElementById("record-btn");
@@ -158,14 +179,14 @@
     
     recordBtn.addEventListener("click", () => {
       if (!isRecording) {
-        // Bắt đầu ghi âm: yêu cầu chọn câu
+        // Ensure a sentence is selected before recording
         if (selectedSentenceIndex === null) {
-          alert("Vui lòng chọn một câu để ghi âm.");
+          alert("Please select a sentence to record.");
           return;
         }
         finalTranscript = "";
         recognition = new SpeechRecognition();
-        recognition.continuous = true; // Không tự dừng khi có khoảng lặng
+        recognition.continuous = true; // Continuous recording (no auto-stop on silence)
         recognition.interimResults = true;
         recognition.lang = "en-US";
         
@@ -179,11 +200,16 @@
             }
           }
           const transcript = finalTranscript + interimTranscript;
-          // Loại bỏ dấu trọng âm khỏi câu đúng để so sánh
           const correctSentence = removeStressMarkers(sentences[selectedSentenceIndex]);
-          // Tạo diff hiển thị từ sai bằng màu đỏ
-          const diffOutput = diffWords(correctSentence, transcript);
-          feedbackDiv.innerHTML = diffOutput;
+          const result = diffWords(correctSentence, transcript);
+          // Display the diff output with errors highlighted
+          feedbackDiv.innerHTML = result.output;
+          // Append a concise summary feedback message
+          if (result.errors === 0) {
+            feedbackDiv.innerHTML += `<div style="margin-top: 10px;">Excellent! Perfect pronunciation.</div>`;
+          } else {
+            feedbackDiv.innerHTML += `<div style="margin-top: 10px;">${result.errors} error(s) out of ${result.total} words.</div>`;
+          }
         };
         
         recognition.onerror = function(event) {
@@ -199,7 +225,7 @@
         isRecording = true;
         recordBtn.textContent = "Stop";
       } else {
-        // Dừng ghi âm khi nhấn nút lần nữa
+        // Stop recording when the button is clicked again
         recognition.stop();
         isRecording = false;
         recordBtn.textContent = "Record";
