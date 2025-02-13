@@ -60,8 +60,10 @@
       left: 50%;
       transform: translateX(-50%);
       display: flex;
+      flex-direction: column;
       gap: 15px;
       z-index: 100;
+      align-items: center;
     }
     button {
       padding: 10px 20px;
@@ -83,6 +85,12 @@
     .stress {
       color: #ffd700;
       font-weight: bold;
+    }
+    .mic-notice {
+      font-size: 0.9rem;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 8px 12px;
+      border-radius: 4px;
     }
   </style>
 </head>
@@ -112,6 +120,7 @@
       const [feedbacks, setFeedbacks] = useState({});
       const [recording, setRecording] = useState(false);
       const [transcript, setTranscript] = useState("");
+      const [micAccessMessage, setMicAccessMessage] = useState("");
       const recognitionRef = useRef(null);
 
       // Khởi tạo Web Speech API nếu có hỗ trợ
@@ -143,16 +152,30 @@
         }
       }, []);
 
-      // Yêu cầu quyền truy cập micro
-      const requestMicrophoneAccess = async () => {
-        try {
-          await navigator.mediaDevices.getUserMedia({ audio: true });
-          alert("Microphone access granted.");
-        } catch (err) {
-          console.error("Microphone access denied", err);
-          alert("Microphone access denied.");
+      // Kiểm tra trạng thái quyền micro và cập nhật thông báo
+      useEffect(() => {
+        if (navigator.permissions && navigator.permissions.query) {
+          navigator.permissions.query({ name: 'microphone' }).then((permissionStatus) => {
+            updateMicMessage(permissionStatus.state);
+            permissionStatus.onchange = function() {
+              updateMicMessage(permissionStatus.state);
+            };
+          });
+        } else {
+          // Nếu không hỗ trợ API Permissions, hiển thị thông báo mặc định
+          setMicAccessMessage("Please allow microphone access for recording.");
         }
-      };
+      }, []);
+
+      function updateMicMessage(state) {
+        if (state === "granted") {
+          setMicAccessMessage("Microphone access granted.");
+        } else if (state === "prompt") {
+          setMicAccessMessage("Please allow microphone access for recording.");
+        } else if (state === "denied") {
+          setMicAccessMessage("Microphone access denied. Please enable it in your browser settings.");
+        }
+      }
 
       // Bắt đầu ghi âm
       const startRecording = () => {
@@ -229,7 +252,8 @@
             ))}
           </main>
           <div className="controls">
-            <button onClick={requestMicrophoneAccess}>Request Microphone Access</button>
+            {/* Thông báo trạng thái quyền micro */}
+            <div className="mic-notice">{micAccessMessage}</div>
             {!recording ? (
               <button onClick={startRecording} disabled={activeLineIndex === null}>
                 Start Recording
