@@ -14,7 +14,7 @@
     }
     .container {
       min-height: 100vh;
-      /* Kết hợp gradient overlay với ảnh nền được thay bằng ai.jpg */
+      /* Gradient overlay kết hợp với ảnh nền ai.jpg */
       background: 
         linear-gradient(135deg, rgba(30,60,114,0.8), rgba(42,82,152,0.8)),
         url('ai.jpg');
@@ -26,20 +26,21 @@
       position: relative;
     }
     .header {
+      display: flex;
+      flex-direction: column;
       position: relative;
-      text-align: center;
       margin-bottom: 30px;
+    }
+    .header-text {
+      align-self: flex-end;
+      font-size: 1rem;
+      color: #ffd700; /* màu vàng */
+      margin-bottom: 5px;
     }
     .header h1 {
       margin: 0;
       font-size: 2.5rem;
-    }
-    .header-text {
-      position: absolute;
-      top: 10px;
-      right: 20px;
-      font-size: 1rem;
-      color: #ffd700; /* màu vàng */
+      text-align: center;
     }
     .content {
       margin-top: 30px;
@@ -53,7 +54,7 @@
       transition: transform 0.3s, background 0.3s, box-shadow 0.3s;
       cursor: pointer;
     }
-    /* Khi dòng được chọn, highlight sẽ luôn sáng với nền sáng hơn và hiệu ứng glow */
+    /* Khi dòng được chọn, highlight luôn sáng với nền sáng hơn và hiệu ứng glow */
     .line-box.active {
       background: rgba(255, 255, 255, 0.3);
       transform: translateY(-5px);
@@ -130,12 +131,12 @@
       const [transcript, setTranscript] = useState("");
       const recognitionRef = useRef(null);
 
-      // Khi load trang, yêu cầu truy cập micro
+      // Yêu cầu truy cập micro khi load trang
       useEffect(() => {
         navigator.mediaDevices.getUserMedia({ audio: true })
           .then(stream => {
             console.log("Microphone access granted on page load.");
-            // Dừng ngay stream nếu không cần dùng, vì chỉ cần quyền là đủ.
+            // Dừng stream ngay vì chỉ cần quyền truy cập
             stream.getTracks().forEach(track => track.stop());
           })
           .catch(err => {
@@ -143,12 +144,12 @@
           });
       }, []);
 
-      // Khởi tạo Web Speech API nếu có hỗ trợ
+      // Khởi tạo Web Speech API nếu trình duyệt hỗ trợ
       useEffect(() => {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (SpeechRecognition) {
           const recognition = new SpeechRecognition();
-          recognition.continuous = true; // Ghi âm liên tục, chỉ dừng khi người dùng nhấn nút dừng
+          recognition.continuous = true; // Ghi âm liên tục, chỉ dừng khi nhấn nút dừng
           recognition.interimResults = false;
           recognition.lang = "en-US";
 
@@ -185,7 +186,6 @@
         if (!recognitionRef.current) return;
         recognitionRef.current.stop();
         setRecording(false);
-        // Sau khi dừng ghi âm, tiến hành đánh giá phát âm
         setTimeout(() => {
           evaluatePronunciation();
         }, 500);
@@ -220,8 +220,8 @@
       return (
         <div className="container">
           <header className="header">
-            <h1>Pronunciation Checker</h1>
             <div className="header-text">By Luong Kieu Trang</div>
+            <h1>Pronunciation Checker</h1>
           </header>
           <main className="content">
             {lines.map((line, index) => (
