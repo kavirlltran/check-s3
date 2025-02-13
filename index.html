@@ -14,10 +14,10 @@
     }
     .container {
       min-height: 100vh;
-      /* Kết hợp gradient overlay với ảnh nền */
+      /* Kết hợp gradient overlay với ảnh nền được thay bằng ai.jpg */
       background: 
         linear-gradient(135deg, rgba(30,60,114,0.8), rgba(42,82,152,0.8)),
-        url('—Pngtree—artificial intelligence robot illustration_9047239.png');
+        url('ai.jpg');
       background-size: cover;
       background-repeat: no-repeat;
       background-position: center center;
@@ -30,10 +30,9 @@
       justify-content: space-between;
       align-items: center;
     }
-    /* Cập nhật hình ảnh ở góc trên bên phải trong header */
-    .header img {
-      width: 80px;
-      height: 80px;
+    .header-text {
+      font-size: 1.2rem;
+      font-weight: bold;
     }
     .content {
       margin-top: 30px;
@@ -47,7 +46,7 @@
       transition: transform 0.3s, background 0.3s, box-shadow 0.3s;
       cursor: pointer;
     }
-    /* Khi dòng được chọn, highlight luôn sáng với nền sáng hơn và hiệu ứng glow */
+    /* Khi dòng được chọn, highlight sẽ luôn sáng với nền sáng hơn và hiệu ứng glow */
     .line-box.active {
       background: rgba(255, 255, 255, 0.3);
       transform: translateY(-5px);
@@ -133,7 +132,7 @@
             stream.getTracks().forEach(track => track.stop());
           })
           .catch(err => {
-            console.error("Error accessing microphone: ", err);
+            console.error("Error accessing microphone:", err);
           });
       }, []);
 
@@ -215,8 +214,7 @@
         <div className="container">
           <header className="header">
             <h1>Pronunciation Checker</h1>
-            {/* Cập nhật ảnh ở góc trên bên phải */}
-            <img src="—Pngtree—artificial intelligence robot illustration_9047239.png" alt="AI Robot" />
+            <div className="header-text">By Luong Kieu Trang</div>
           </header>
           <main className="content">
             {lines.map((line, index) => (
