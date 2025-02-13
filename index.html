@@ -14,10 +14,10 @@
     }
     .container {
       min-height: 100vh;
-      /* Gradient overlay kết hợp với ảnh nền Untitled.jpg */
+      /* Gradient overlay kết hợp với ảnh nền "Untitled.jpg" */
       background: 
         linear-gradient(135deg, rgba(30,60,114,0.8), rgba(42,82,152,0.8)),
-        url('ai.jpg');
+        url('Untitled.jpg');
       background-size: cover;
       background-repeat: no-repeat;
       background-position: center center;
@@ -34,7 +34,7 @@
     .header-text {
       align-self: flex-end;
       font-size: 1rem;
-      color: #ffd700; /* màu vàng */
+      color: #ffd700; /* Màu vàng */
       margin-bottom: 5px;
     }
     .header h1 {
@@ -54,7 +54,7 @@
       transition: transform 0.3s, background 0.3s, box-shadow 0.3s;
       cursor: pointer;
     }
-    /* Khi dòng được chọn, highlight luôn sáng với nền sáng hơn và hiệu ứng glow */
+    /* Khi dòng được chọn, highlight sẽ luôn sáng với nền sáng hơn và hiệu ứng glow */
     .line-box.active {
       background: rgba(255, 255, 255, 0.3);
       transform: translateY(-5px);
@@ -106,12 +106,12 @@
 <body>
   <div id="root"></div>
   
-  <!-- Load React, ReactDOM and Babel -->
+  <!-- Load React, ReactDOM và Babel từ CDN -->
   <script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>
   <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
   
-  <!-- Our React code -->
+  <!-- Mã nguồn React của chúng ta -->
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
 
@@ -149,7 +149,7 @@
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (SpeechRecognition) {
           const recognition = new SpeechRecognition();
-          recognition.continuous = true; // Ghi âm liên tục, chỉ dừng khi nhấn nút dừng
+          recognition.continuous = true; // Ghi âm liên tục, chỉ dừng khi người dùng nhấn nút dừng
           recognition.interimResults = false;
           recognition.lang = "en-US";
 
